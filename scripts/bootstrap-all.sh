@@ -1,63 +1,45 @@
 #!/bin/bash
-# Kaycha DocGen — Bootstrap ALL repos in an org
-# Usage: ./bootstrap-all.sh <org-name>
-# Example: ./bootstrap-all.sh Kaycha-Labs
+# Kaycha DocGen — Bootstrap ALL repos in a directory
+# Usage: ./bootstrap-all.sh <parent-directory>
+# Example: ./bootstrap-all.sh /e/Projects
 #
-# Requires: gh CLI authenticated with appropriate permissions
+# Installs the pre-push hook in every git repo found under the parent directory.
 
 set -euo pipefail
 
-ORG="${1:?Usage: ./bootstrap-all.sh <org-name>}"
+PARENT="${1:?Usage: ./bootstrap-all.sh <parent-directory>}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "═══ Kaycha DocGen — Bootstrap All Repos ═══"
-echo "Organization: $ORG"
+echo "Scanning: $PARENT"
 echo ""
 
-# List all repos in the org
-REPOS=$(gh repo list "$ORG" --limit 100 --json name --jq '.[].name')
-
-TOTAL=$(echo "$REPOS" | wc -l)
 COUNT=0
-SKIPPED=0
 ADDED=0
+SKIPPED=0
 
-for REPO_NAME in $REPOS; do
+for DIR in "$PARENT"/*/; do
+  [ -d "$DIR/.git" ] || continue
   COUNT=$((COUNT + 1))
-  echo "[$COUNT/$TOTAL] $ORG/$REPO_NAME"
+  REPO_NAME=$(basename "$DIR")
 
-  # Check if workflow already exists
-  EXISTS=$(gh api "repos/$ORG/$REPO_NAME/contents/.github/workflows/docgen.yml" 2>/dev/null && echo "yes" || echo "no")
-
-  if [ "$EXISTS" = "yes" ]; then
-    echo "  ⏭  Already has docgen.yml — skipping"
+  # Check if hook already exists
+  if [ -f "$DIR/.git/hooks/pre-push" ] && grep -q 'docgen' "$DIR/.git/hooks/pre-push" 2>/dev/null; then
+    echo "  ⏭  $REPO_NAME — already has docgen hook"
     SKIPPED=$((SKIPPED + 1))
     continue
   fi
 
-  # Add workflow via GitHub API (no need to clone)
-  CONTENT=$(echo -n 'name: DocGen
-on:
-  push:
-    branches: ["**"]
-jobs:
-  docgen:
-    uses: Jamesjhf1/docgen-template/.github/workflows/docgen.yml@main
-    secrets: inherit' | base64 -w 0)
-
-  gh api --method PUT "repos/$ORG/$REPO_NAME/contents/.github/workflows/docgen.yml" \
-    -f message="chore: add Kaycha DocGen workflow" \
-    -f content="$CONTENT" \
-    --silent 2>/dev/null || {
-      echo "  ✗  Failed — check permissions"
-      continue
-    }
-
-  echo "  ✓  Added docgen.yml"
-  ADDED=$((ADDED + 1))
+  "$SCRIPT_DIR/bootstrap-repo.sh" "$DIR" > /dev/null 2>&1 && {
+    echo "  ✓  $REPO_NAME — hook installed"
+    ADDED=$((ADDED + 1))
+  } || {
+    echo "  ✗  $REPO_NAME — failed"
+  }
 done
 
 echo ""
 echo "═══ Summary ═══"
-echo "Total repos: $TOTAL"
+echo "Total repos: $COUNT"
 echo "Added:       $ADDED"
 echo "Skipped:     $SKIPPED"

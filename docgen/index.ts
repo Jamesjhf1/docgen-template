@@ -179,7 +179,7 @@ async function generateDoc(prompt: string, model: string): Promise<string> {
   const response = await ollamaChat(OLLAMA_URL, {
     model,
     messages: [
-      { role: 'system', content: getSystemPrompt() },
+      { role: 'system', content: getSystemPrompt() + '\n\n/no_think' },
       { role: 'user', content: prompt },
     ],
     stream: false,
@@ -190,9 +190,13 @@ async function generateDoc(prompt: string, model: string): Promise<string> {
   totalInputTokens += response.prompt_eval_count || 0;
   totalOutputTokens += response.eval_count || 0;
 
-  const content = response.message?.content;
+  let content = response.message?.content || '';
+
+  // Strip thinking blocks from qwen3.5 models
+  content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
   if (!content) {
-    throw new Error('No text content in Ollama response');
+    throw new Error('No text content in Ollama response (empty after stripping think blocks)');
   }
 
   return content;
