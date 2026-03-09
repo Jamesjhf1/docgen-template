@@ -179,11 +179,12 @@ async function generateDoc(prompt: string, model: string): Promise<string> {
   const response = await ollamaChat(OLLAMA_URL, {
     model,
     messages: [
-      { role: 'system', content: getSystemPrompt() + '\n\n/no_think' },
+      { role: 'system', content: getSystemPrompt() },
       { role: 'user', content: prompt },
     ],
     stream: false,
-    options: { temperature: 0.3, num_predict: 4096 },
+    think: false,
+    options: { temperature: 0.3, num_predict: 8192 },
   });
 
   // Track token usage

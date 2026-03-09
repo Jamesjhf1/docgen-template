@@ -16,6 +16,7 @@ export interface OllamaChatRequest {
   model: string;
   messages: { role: string; content: string }[];
   stream: false;
+  think?: boolean;
   options?: { temperature?: number; num_predict?: number };
 }
 
