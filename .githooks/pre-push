@@ -1,0 +1,15 @@
+#!/bin/bash
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+MACHINE=$(hostname | tr '[:upper:]' '[:lower:]')
+
+# Allow main, or machine-prefixed branches
+if [[ "$BRANCH" == "main" ]]; then
+  exit 0
+fi
+
+if [[ "$BRANCH" != "$MACHINE/"* && "$BRANCH" != "jericho/"* && "$BRANCH" != "sentinel/"* && "$BRANCH" != "iron-patriot/"* && "$BRANCH" != "ironman/"* ]]; then
+  echo "ERROR: Branch '$BRANCH' must be prefixed with machine name."
+  echo "Expected: $MACHINE/<type>-<description>"
+  echo "Example:  $MACHINE/feature-new-auth"
+  exit 1
+fi
